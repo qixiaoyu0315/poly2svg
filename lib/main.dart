@@ -28,12 +28,16 @@ class _PolylineToSVGScreenState extends State<PolylineToSVGScreen> {
 
   /// 使用 `flutter_polyline_points` 解码 polyline
   List<List<double>> _decodePolyline(String polylineStr) {
-    PolylinePoints polylinePoints = PolylinePoints();
-    List<PointLatLng> result = polylinePoints.decodePolyline(polylineStr);
-
-    return result
-        .map((p) => wgs84ToWebMercator(p.longitude, p.latitude))
-        .toList();
+    try {
+      PolylinePoints polylinePoints = PolylinePoints();
+      List<PointLatLng> result = polylinePoints.decodePolyline(polylineStr);
+      return result
+          .map((p) => wgs84ToWebMercator(p.longitude, p.latitude))
+          .toList();
+    } catch (e) {
+      print('Polyline解码错误: $e');
+      return [];
+    }
   }
 
   /// WGS84 转换为 Web Mercator
@@ -46,11 +50,20 @@ class _PolylineToSVGScreenState extends State<PolylineToSVGScreen> {
 
   void _generateSVG() {
     String polylineStr = _controller.text.trim();
-    if (polylineStr.isEmpty) return;
+    if (polylineStr.isEmpty) {
+      setState(() {
+        _svgData = "";
+      });
+      return;
+    }
 
     List<List<double>> points = _decodePolyline(polylineStr);
-
-    if (points.isEmpty) return;
+    if (points.isEmpty) {
+      setState(() {
+        _svgData = "<svg><text>错误：无效的Polyline字符串</text></svg>";
+      });
+      return;
+    }
 
     double minX = points.map((p) => p[0]).reduce(min);
     double maxX = points.map((p) => p[0]).reduce(max);
@@ -71,7 +84,7 @@ class _PolylineToSVGScreenState extends State<PolylineToSVGScreen> {
 
     String svgContent = '''
       <svg viewBox="0 0 $imageWidth $imageHeight" xmlns="http://www.w3.org/2000/svg">
-        <polyline points="${pathData.join(' ')}" fill="none" stroke="green" stroke-width="15"/>
+        <polyline points="${pathData.join(' ')}" fill="none" stroke="green" stroke-width="5"/>
       </svg>
     ''';
 
@@ -106,8 +119,8 @@ class _PolylineToSVGScreenState extends State<PolylineToSVGScreen> {
               child: _svgData.isNotEmpty
                   ? Center(
                       child: SizedBox(
-                        width: 100,
-                        height: 100,
+                        width: 400,
+                        height: 400,
                         child: SvgPicture.string(_svgData, fit: BoxFit.contain),
                       ),
                     )
